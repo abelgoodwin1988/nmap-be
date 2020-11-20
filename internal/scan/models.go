@@ -1,18 +1,25 @@
 package scan
 
-type scan struct {
-	Address  string `json:"Address"`
-	Ports    []int  `json:"Ports"`
-	PrevScan *scan  `json:"Parent"`
+// Scan is a single nmap scan record
+type Scan struct {
+	Address string `json:"Address"`
+	Ports   []int  `json:"Ports"`
+	Parent  *Scan  `json:"Parent"`
+	Child   *Scan  `json:"Child"`
 }
 
-func (s *scan) diff() []int {
+// Diff returns the difference of ports between two scans
+func (s *Scan) Diff() []int {
+	if s.Parent == nil {
+		return []int{}
+	}
+
 	a := map[int]struct{}{}
 	b := map[int]struct{}{}
 	for _, v := range s.Ports {
 		a[v] = struct{}{}
 	}
-	for _, v := range s.PrevScan.Ports {
+	for _, v := range s.Parent.Ports {
 		b[v] = struct{}{}
 	}
 
@@ -34,13 +41,17 @@ func (s *scan) diff() []int {
 	return diff
 }
 
-func (s *scan) added() []int {
+// Added is the ports that have been added to the parent scan from the child scan
+func (s *Scan) Added() []int {
+	if s.Parent == nil {
+		return []int{}
+	}
 	a := map[int]struct{}{}
 	b := map[int]struct{}{}
 	for _, v := range s.Ports {
 		a[v] = struct{}{}
 	}
-	for _, v := range s.PrevScan.Ports {
+	for _, v := range s.Parent.Ports {
 		b[v] = struct{}{}
 	}
 
@@ -53,13 +64,18 @@ func (s *scan) added() []int {
 
 	return added
 }
-func (s *scan) removed() []int {
+
+// Removed is the ports that have been removed from the parent scan from the child scan
+func (s *Scan) Removed() []int {
+	if s.Parent == nil {
+		return []int{}
+	}
 	a := map[int]struct{}{}
 	b := map[int]struct{}{}
 	for _, v := range s.Ports {
 		a[v] = struct{}{}
 	}
-	for _, v := range s.PrevScan.Ports {
+	for _, v := range s.Parent.Ports {
 		b[v] = struct{}{}
 	}
 

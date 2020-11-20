@@ -1,88 +1,77 @@
 package port
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/abelgoodwin1988/nmap-be/internal/db"
 	"github.com/abelgoodwin1988/nmap-be/internal/nmap"
+	"github.com/abelgoodwin1988/nmap-be/internal/scan"
 	"github.com/go-playground/validator"
+	"github.com/pkg/errors"
 )
 
-// Get performs an nmap portscan of provided addresses in the request body
-func Scan(w http.ResponseWritwer, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Bad request; unable to get request body"))
-		return
-	}
-
-	rAddresses := requestAddresses{}
-	if err := json.Unmarshal(body, &rAddresses); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("bad request. provide a comma-separated list of hostnames and addresses"))
-		return
-	}
-
-	addresses := strings.Split(rAddresses.Addresses, ",")
+// Scan performs an nmap portscan of provided addresses in the request body
+func Scan(addr string) ([][]scan.Scan, error) {
+	addresses := strings.Split(addr, ",")
 	// TODO: Deduplicate the given addresses
 
 	validate := validator.New()
-	for i, address := range addresses {
+	for _, address := range addresses {
 		address := address
 		errs := validate.Var(address, "ip|fqdn")
 		if errs != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(fmt.Sprintf("bad request, provide a comma-separated list of valid hostnames and addresses\nposition %d value %s \nerror\n%s", i, address, errs.Error())))
-			return
+			errors.Wrapf(errs, "invalid address %s", address)
+			return nil, errs
 		}
 	}
 
-	responsePorts, err := nMapHandler(addresses)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("internal service error, sorry :(\n%s", err.Error())))
-		return
-	}
-	w.Write([]byte(fmt.Sprintf("%+#v", responsePorts)))
-	return
-}
-
-func nMapHandler(addresses []string) ([]scan, error) {
-	responsePorts := []scan{}
 	// Is there a way to pass an array of addresses to nmap instead of iterating over?
 	for _, address := range addresses {
-		responsePort := scan{Address: address}
 		nMapOutput, err := nmap.RunNMap(address)
 		if err != nil {
 			return nil, err
 		}
+
 		ports := []int{}
 		for _, v := range nMapOutput {
 			ports = append(ports, v.Port)
 		}
-		responsePort.Ports = ports
 
-		// Get stored values, if they exist
-		lastRunPorts, err := db.GetLastRunPorts(address)
+		if err := db.InsertScan(address, ports); err != nil {
+			return nil, err
+		}
+	}
+	// Now that the current scan is in the db, let's get them all and construct a tree of scans
+	scansForAddresses := [][]scan.Scan{}
+	for _, address := range addresses {
+		runs, err := db.GetScansByAddress(address)
 		if err != nil {
-			return nil, err
+			err = errors.Wrapf(err, "failed to get scans by address ")
 		}
-		responsePort.LastResults = lastRunPorts
-		responsePort.diff()
-		responsePort.added()
-		responsePort.removed()
-		responsePorts = append(responsePorts, responsePort)
-	}
-	// Now that all responses are gathered and no errors, we can insert all ports gathered this run
-	for _, responsePort := range responsePorts {
-		if err := db.InsertRunPorts(responsePort.Ports, responsePort.Address); err != nil {
-			return nil, err
+		scans := make([]scan.Scan, len(runs))
+		for i, run := range runs {
+			iPorts := []int{}
+			for _, sPort := range strings.Split(run.Ports, ",") {
+				iPort, err := strconv.Atoi(sPort)
+				if err != nil {
+					err = errors.Wrapf(err, "failed to convert port %s to int", sPort)
+				}
+				iPorts = append(iPorts, iPort)
+			}
+			scans[i].Address = run.Address
+			scans[i].Ports = iPorts
+			if i != 0 {
+				scans[i].Child = &scans[i-1]
+			}
+			if i != len(runs)-1 {
+				scans[i].Parent = &scans[i+1]
+			}
 		}
+		fmt.Print(scans)
+		scansForAddresses = append(scansForAddresses, scans)
 	}
-	return responsePorts, nil
+
+	return scansForAddresses, nil
 }
