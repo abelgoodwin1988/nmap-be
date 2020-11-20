@@ -90,5 +90,3 @@ func InsertRunPorts(ports []int, address string) error {
 	fmt.Printf("id of insert: %d", runResultsID)
 	return nil
 }
-
-func GetScanHistory()
