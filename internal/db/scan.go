@@ -55,6 +55,5 @@ ORDER BY address, id desc
 		err = errors.Wrapf(err, "failed to get scans")
 		return nil, err
 	}
-	fmt.Printf("runs:\n%v\n", runs)
 	return runs, nil
 }

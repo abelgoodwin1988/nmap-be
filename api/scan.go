@@ -19,13 +19,13 @@ type requestAddresses struct {
 type responseScan struct {
 	Address    string `json:"Address"`
 	Ports      string `json:"Ports"`
-	Difference []int  `json:"Difference"`
-	Added      []int  `json:"Added"`
-	Removed    []int  `json:"Removed"`
+	Difference []int  `json:"Difference,omitempty"`
+	Added      []int  `json:"Added,omitempty"`
+	Removed    []int  `json:"Removed,omitempty"`
 }
 
 type responseScans struct {
-	Scans []responseScan `json:"Scans"`
+	Scans [][]responseScan `json:"Scans"`
 }
 
 func scanHandler(w http.ResponseWriter, r *http.Request) {
@@ -65,20 +65,22 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 func transform(scans [][]scan.Scan) responseScans {
 	respScans := responseScans{}
 	for _, scanAddressGroup := range scans {
+		respScan := []responseScan{}
 		for _, scan := range scanAddressGroup {
 			sPorts := []string{}
 			for _, port := range scan.Ports {
 				sPorts = append(sPorts, strconv.Itoa(port))
 			}
-			respScan := responseScan{
+			thisRespScan := responseScan{
 				Address:    scan.Address,
 				Ports:      strings.Join(sPorts, ","),
 				Difference: scan.Diff(),
 				Added:      scan.Added(),
 				Removed:    scan.Removed(),
 			}
-			respScans.Scans = append(respScans.Scans, respScan)
+			respScan = append(respScan, thisRespScan)
 		}
+		respScans.Scans = append(respScans.Scans, respScan)
 	}
 	return respScans
 }

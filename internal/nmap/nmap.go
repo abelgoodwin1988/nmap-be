@@ -1,7 +1,6 @@
 package nmap
 
 import (
-	"fmt"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -23,7 +22,6 @@ func RunNMap(address string) ([]Out, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("nmap results for %s:\n%v\n\n", address, nMapResults)
 	return nMapResults, nil
 }
 

@@ -1,7 +1,6 @@
 package port
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -69,7 +68,6 @@ func Scan(addr string) ([][]scan.Scan, error) {
 				scans[i].Parent = &scans[i+1]
 			}
 		}
-		fmt.Print(scans)
 		scansForAddresses = append(scansForAddresses, scans)
 	}
 

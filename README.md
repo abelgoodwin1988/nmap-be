@@ -26,9 +26,14 @@ docker-compose -f deployments/docker-compose.local.yml up
 - Start the api by running `go run main.go`
 - Validate that the service is functioning by opening another terminal and running the following:
 ```bash
-curlie -H "Content-Type: application/json" \
+curl -H "Content-Type: application/json" \
  --request GET \
- --data '{"addresses":"google.com","127.0.0.1"}' \
- localhost:8080
+ --data '{"addresses":"google.com,127.0.0.1"}' \
+ localhost:8080/portscan
 ```
  
+## Some TODOs
+
+- [ ] Add better logging and observability. Maybe apex logger, or uber zap?
+- [ ] Add concurrent processing of addresses
+- [ ] Graceful ListenAndServe
