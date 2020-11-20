@@ -11,7 +11,7 @@ CREATE TABLE run_results (
     id INT NOT NULL AUTO_INCREMENT,
     run INT NOT NULL,
     address VARCHAR(253) NOT NULL,
-    results TEXT NOT NULL,
+    ports TEXT NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY(run) REFERENCES runs(id)
 )

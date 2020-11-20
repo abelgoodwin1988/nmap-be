@@ -11,9 +11,11 @@ services:
       MYSQL_ROOT_PASSWORD: 'password'
     expose:
       - '3306'
+    ports:
+      - 127.0.0.1:3306:3306
     volumes:
       - ../build/database:/docker-entrypoint-initdb.d
-      - my-db:/var/lib/mysql
+      - nmap-db:/var/lib/mysql
 
 volumes:
-  my-db:
+  nmap-db:
