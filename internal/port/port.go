@@ -1,4 +1,4 @@
-package portscan
+package port
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 )
 
 // Get performs an nmap portscan of provided addresses in the request body
-func Get(w http.ResponseWriter, r *http.Request) {
+func Scan(w http.ResponseWritwer, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -85,69 +85,4 @@ func nMapHandler(addresses []string) ([]scan, error) {
 		}
 	}
 	return responsePorts, nil
-}
-
-func (s *scan) diff() []int {
-	a := map[int]struct{}{}
-	b := map[int]struct{}{}
-	for _, v := range s.Ports {
-		a[v] = struct{}{}
-	}
-	for _, v := range s.LastResults {
-		b[v] = struct{}{}
-	}
-
-	c := map[int]struct{}{}
-	for k := range a {
-		if _, ok := b[k]; !ok {
-			c[k] = struct{}{}
-		}
-	}
-	for k := range b {
-		if _, ok := a[k]; !ok {
-			c[k] = struct{}{}
-		}
-	}
-
-	for k := range c {
-		s.Diff = append(s.Diff, k)
-	}
-	return s.Diff
-}
-
-func (s *scan) added() []int {
-	a := map[int]struct{}{}
-	b := map[int]struct{}{}
-	for _, v := range s.Ports {
-		a[v] = struct{}{}
-	}
-	for _, v := range s.LastResults {
-		b[v] = struct{}{}
-	}
-
-	for k := range a {
-		if _, ok := b[k]; !ok {
-			s.Added = append(s.Added, k)
-		}
-	}
-
-	return s.Added
-}
-func (s *scan) removed() []int {
-	a := map[int]struct{}{}
-	b := map[int]struct{}{}
-	for _, v := range s.Ports {
-		a[v] = struct{}{}
-	}
-	for _, v := range s.LastResults {
-		b[v] = struct{}{}
-	}
-
-	for k := range b {
-		if _, ok := a[k]; !ok {
-			s.Added = append(s.Removed, k)
-		}
-	}
-
-	return s.Removed
 }
