@@ -20,7 +20,6 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Bad request; unable to get request body"))
 		return
 	}
-	fmt.Printf("body received:\n%s\n", string(body))
 
 	rAddresses := requestAddresses{}
 	if err := json.Unmarshal(body, &rAddresses); err != nil {
@@ -28,14 +27,11 @@ func Get(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("bad request. provide a comma-separated list of hostnames and addresses"))
 		return
 	}
-	fmt.Printf("deserialized addresses:\n%s\n", rAddresses)
 
 	addresses := strings.Split(rAddresses.Addresses, ",")
-	fmt.Printf("split addresses:\n%v\n", addresses)
 	// TODO: Deduplicate the given addresses
 
 	validate := validator.New()
-	fmt.Println("validating inputs...")
 	for i, address := range addresses {
 		address := address
 		errs := validate.Var(address, "ip|fqdn")
@@ -45,7 +41,6 @@ func Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	fmt.Println("inputs valid")
 
 	responsePorts, err := nMapHandler(addresses)
 	if err != nil {
@@ -57,11 +52,11 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func nMapHandler(addresses []string) ([]responsePort, error) {
-	responsePorts := []responsePort{}
+func nMapHandler(addresses []string) ([]scan, error) {
+	responsePorts := []scan{}
 	// Is there a way to pass an array of addresses to nmap instead of iterating over?
 	for _, address := range addresses {
-		responsePort := responsePort{Address: address}
+		responsePort := scan{Address: address}
 		nMapOutput, err := nmap.RunNMap(address)
 		if err != nil {
 			return nil, err
@@ -92,13 +87,13 @@ func nMapHandler(addresses []string) ([]responsePort, error) {
 	return responsePorts, nil
 }
 
-func (rp *responsePort) diff() []int {
+func (s *scan) diff() []int {
 	a := map[int]struct{}{}
 	b := map[int]struct{}{}
-	for _, v := range rp.Ports {
+	for _, v := range s.Ports {
 		a[v] = struct{}{}
 	}
-	for _, v := range rp.LastResults {
+	for _, v := range s.LastResults {
 		b[v] = struct{}{}
 	}
 
@@ -115,44 +110,44 @@ func (rp *responsePort) diff() []int {
 	}
 
 	for k := range c {
-		rp.Diff = append(rp.Diff, k)
+		s.Diff = append(s.Diff, k)
 	}
-	return rp.Diff
+	return s.Diff
 }
 
-func (rp *responsePort) added() []int {
+func (s *scan) added() []int {
 	a := map[int]struct{}{}
 	b := map[int]struct{}{}
-	for _, v := range rp.Ports {
+	for _, v := range s.Ports {
 		a[v] = struct{}{}
 	}
-	for _, v := range rp.LastResults {
+	for _, v := range s.LastResults {
 		b[v] = struct{}{}
 	}
 
 	for k := range a {
 		if _, ok := b[k]; !ok {
-			rp.Added = append(rp.Added, k)
+			s.Added = append(s.Added, k)
 		}
 	}
 
-	return rp.Added
+	return s.Added
 }
-func (rp *responsePort) removed() []int {
+func (s *scan) removed() []int {
 	a := map[int]struct{}{}
 	b := map[int]struct{}{}
-	for _, v := range rp.Ports {
+	for _, v := range s.Ports {
 		a[v] = struct{}{}
 	}
-	for _, v := range rp.LastResults {
+	for _, v := range s.LastResults {
 		b[v] = struct{}{}
 	}
 
 	for k := range b {
 		if _, ok := a[k]; !ok {
-			rp.Added = append(rp.Removed, k)
+			s.Added = append(s.Removed, k)
 		}
 	}
 
-	return rp.Removed
+	return s.Removed
 }
